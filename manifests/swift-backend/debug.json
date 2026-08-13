@@ -3,6 +3,23 @@
   "version": "0.1.0",
   "channel": "debug",
   "tag": "swift-backend-debug-v0.1.0",
-  "commit": "",
-  "assets": []
+  "commit": "432d1371c1cd190ed7d23c7e13b0783ed624b592",
+  "assets": [
+    {
+      "name": "LunchProxyPoolManager-0.1.0-linux-aarch64.sha256",
+      "sha256": "6c7b780563b3969dd513265c2f856bdf1cee8145a8cb00dd8c9840974e3d98f4"
+    },
+    {
+      "name": "LunchProxyPoolManager-0.1.0-linux-aarch64.tar.gz",
+      "sha256": "8aa4e925f8a85bb4ce4a86b5b5272e3f117b1b5b18b96439e9d035b75c025f65"
+    },
+    {
+      "name": "LunchProxyPoolManager-0.1.0-linux-amd64.sha256",
+      "sha256": "3ec027af4b381b6a444d69230a3c35f2931ce24c9af8b75430c6fd3bb2108a62"
+    },
+    {
+      "name": "LunchProxyPoolManager-0.1.0-linux-amd64.tar.gz",
+      "sha256": "76d1811096813db766b1d7a02da7b02656963de9af93eed2c284cb84c6cf89c0"
+    }
+  ]
 }
