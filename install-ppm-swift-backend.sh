@@ -7,12 +7,16 @@ RELEASE_REPO="${RELEASE_REPO:-wxyjay/proxy-pool-manager-releases}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/proxy-pool-manager-swift-backend}"
 DATA_DIR="${DATA_DIR:-/var/lib/proxy-pool-manager-swift-backend}"
 UNIT_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
+INSTALL_STATE_DIR="${DATA_DIR}/installer"
+VPNGATE_DEPS_STATE_FILE="${INSTALL_STATE_DIR}/vpngate-installed-packages.txt"
 LEGACY_SERVICE_NAME="LunchProxyPoolManager"
 LEGACY_WORKING_DIR="/download/LunchProxyPoolManager"
 LEGACY_UNIT_FILE="/etc/systemd/system/${LEGACY_SERVICE_NAME}.service"
 BRANCH="main"
 ACTION=""
 MIGRATE_LEGACY="false"
+VPNGATE_DEPS_MODE="auto"
+PURGE_VPNGATE_DEPS="false"
 TMP_DIR_TO_CLEAN=""
 
 cleanup_tmp_dir() {
@@ -27,6 +31,7 @@ usage() {
   cat <<'EOF'
 Usage:
   install-ppm-swift-backend.sh [--branch main|debug] [--migrate-legacy] [--install|--uninstall|--purge|--status|--interactive]
+  install-ppm-swift-backend.sh [--install-vpngate-deps|--skip-vpngate-deps] [--purge-vpngate-deps]
 
 Environment:
   RELEASE_REPO  Public release repo, default wxyjay/proxy-pool-manager-releases.
@@ -63,6 +68,18 @@ while [[ $# -gt 0 ]]; do
       ;;
     --migrate-legacy|--migrate-legacy-data)
       MIGRATE_LEGACY="true"
+      shift
+      ;;
+    --install-vpngate-deps)
+      VPNGATE_DEPS_MODE="required"
+      shift
+      ;;
+    --skip-vpngate-deps|--no-vpngate-deps)
+      VPNGATE_DEPS_MODE="skip"
+      shift
+      ;;
+    --purge-vpngate-deps)
+      PURGE_VPNGATE_DEPS="true"
       shift
       ;;
     -h|--help)
@@ -134,6 +151,131 @@ install_missing_dependencies() {
 
   echo "No supported package manager found to install missing dependencies: ${missing[*]}" >&2
   exit 1
+}
+
+vpngate_package_for_command() {
+  case "$1" in
+    ip) echo "iproute2" ;;
+    slirp4netns) echo "slirp4netns" ;;
+    openvpn) echo "openvpn" ;;
+    *) echo "$1" ;;
+  esac
+}
+
+apt_package_installed() {
+  local package="$1"
+  dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -q "install ok installed"
+}
+
+record_vpngate_installed_packages() {
+  local packages=("$@")
+  local package
+  [[ "${#packages[@]}" -gt 0 ]] || return 0
+
+  mkdir -p "$INSTALL_STATE_DIR"
+  touch "$VPNGATE_DEPS_STATE_FILE"
+  for package in "${packages[@]}"; do
+    if ! grep -Fxq "$package" "$VPNGATE_DEPS_STATE_FILE"; then
+      printf '%s\n' "$package" >> "$VPNGATE_DEPS_STATE_FILE"
+    fi
+  done
+}
+
+install_vpngate_missing_dependencies() {
+  local missing=("$@")
+  local packages=()
+  local newly_required=()
+  local installed_by_script=()
+  local cmd package
+
+  if ! command -v apt-get >/dev/null 2>&1; then
+    if [[ "$VPNGATE_DEPS_MODE" == "required" ]]; then
+      echo "No supported package manager found for VPNGate dependencies: ${missing[*]}" >&2
+      exit 1
+    fi
+    echo "Skipping VPNGate dependency installation: no supported package manager found (${missing[*]})." >&2
+    return 0
+  fi
+
+  for cmd in "${missing[@]}"; do
+    package="$(vpngate_package_for_command "$cmd")"
+    packages+=("$package")
+    if ! apt_package_installed "$package"; then
+      newly_required+=("$package")
+    fi
+  done
+
+  apt-get update
+  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${packages[@]}"
+
+  for package in "${newly_required[@]}"; do
+    if apt_package_installed "$package"; then
+      installed_by_script+=("$package")
+    fi
+  done
+  record_vpngate_installed_packages "${installed_by_script[@]}"
+}
+
+ensure_vpngate_runtime_dependencies() {
+  if [[ "$VPNGATE_DEPS_MODE" == "skip" ]]; then
+    echo "Skipping VPNGate runtime dependency installation."
+    return 0
+  fi
+
+  local required=(ip slirp4netns openvpn)
+  local missing=()
+  local item
+  while IFS= read -r item; do
+    [[ -n "$item" ]] && missing+=("$item")
+  done < <(missing_commands "${required[@]}")
+
+  if [[ "${#missing[@]}" -gt 0 ]]; then
+    echo "Missing VPNGate runtime dependencies: ${missing[*]}"
+    install_vpngate_missing_dependencies "${missing[@]}"
+  fi
+
+  if [[ ! -e /dev/net/tun ]]; then
+    echo "Warning: /dev/net/tun is missing. VPNGate workers require tun support on the host." >&2
+  fi
+}
+
+safe_vpngate_purge_package() {
+  local package="$1"
+  case "$package" in
+    slirp4netns|openvpn)
+      ;;
+    iproute2)
+      echo "Skipping package removal for iproute2."
+      return 0
+      ;;
+    *)
+      echo "Skipping package removal for unrecognized VPNGate package: ${package}"
+      return 0
+      ;;
+  esac
+
+  if command -v apt-get >/dev/null 2>&1; then
+    apt-get remove -y "$package" || true
+    return 0
+  fi
+
+  echo "No supported package manager found to remove VPNGate package: ${package}" >&2
+}
+
+remove_vpngate_dependencies_if_requested() {
+  [[ "$PURGE_VPNGATE_DEPS" == "true" ]] || return 0
+
+  if [[ ! -f "$VPNGATE_DEPS_STATE_FILE" ]]; then
+    echo "No VPNGate dependency state file found. Leaving system packages unchanged."
+    return 0
+  fi
+
+  local package
+  while IFS= read -r package; do
+    [[ -n "$package" ]] || continue
+    safe_vpngate_purge_package "$package"
+  done < "$VPNGATE_DEPS_STATE_FILE"
+  rm -f "$VPNGATE_DEPS_STATE_FILE"
 }
 
 ensure_dependencies() {
@@ -375,6 +517,8 @@ EOF
 
 install_or_update() {
   ensure_dependencies install
+  mkdir -p "$DATA_DIR"
+  ensure_vpngate_runtime_dependencies
   migrate_legacy_data_if_requested
 
   local arch tmp_dir archive
@@ -405,6 +549,7 @@ uninstall_keep_data() {
   rm -f "$UNIT_FILE"
   systemctl daemon-reload
   rm -rf "$INSTALL_DIR"
+  remove_vpngate_dependencies_if_requested
   echo "Removed program files. Data preserved at ${DATA_DIR}."
 }
 
