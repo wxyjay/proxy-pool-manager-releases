@@ -1,0 +1,14 @@
+.DS_Store
+*.tmp
+*.log
+artifacts/
+downloads/
+*.tar.gz
+*.sha256
+*.bak
+*.orig
+AGENTS.md
+agents.md
+/.env
+/.env.*
+/.netrc
