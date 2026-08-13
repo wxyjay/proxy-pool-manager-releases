@@ -506,6 +506,7 @@ User=root
 WorkingDirectory=${DATA_DIR}
 Environment=PPM_ROOT=${DATA_DIR}
 ExecStart=${INSTALL_DIR}/LunchProxyPoolManager --root ${DATA_DIR}
+ExecStopPost=-${INSTALL_DIR}/LunchProxyPoolManager --root ${DATA_DIR} --cleanup-vpngate-runtime
 Restart=on-failure
 RestartSec=3
 LimitNOFILE=1048576
