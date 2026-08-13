@@ -3,23 +3,23 @@
   "version": "0.1.1",
   "channel": "debug",
   "tag": "swift-backend-debug-v0.1.1",
-  "commit": "65a8f47b4294e25d1e0f10245e714345e9c89782",
+  "commit": "17cdd3bfcfcb91af76ae36228b1181cba071ec21",
   "assets": [
     {
       "name": "LunchProxyPoolManager-0.1.1-linux-aarch64.sha256",
-      "sha256": "ce0d389a96bdeb580b017b0b182de927ccaafd7a8bae768a549745cc19cbccfa"
+      "sha256": "437c66d921925f507e2aaa3684b640b4dd130bef0dc3f71c87a3978417322b2e"
     },
     {
       "name": "LunchProxyPoolManager-0.1.1-linux-aarch64.tar.gz",
-      "sha256": "e3a6f5ec15a10d53b7861d48ad20b5494cb0f7f522bc8e633040482ccc6fdbcb"
+      "sha256": "33c016fa23981557b7ce015d4cc01916201f56083ab0c71ccc1ec89a20f44434"
     },
     {
       "name": "LunchProxyPoolManager-0.1.1-linux-amd64.sha256",
-      "sha256": "925ce530220bb467b71d542ae2a9f7cc80bdae53c7d139f5f4d96e88f7503ae3"
+      "sha256": "325a4be1f2bc04510792932f30daadbc1e01d6609f29af4d195f770de060f062"
     },
     {
       "name": "LunchProxyPoolManager-0.1.1-linux-amd64.tar.gz",
-      "sha256": "45078a617ab637d21fed2f56fd1e664fba5394fd9fd1504b4eded6aefc27618e"
+      "sha256": "f890b408d13c8926a4776641f00c3fcfa3bdc5135ef05c696471640f99416086"
     }
   ]
 }
